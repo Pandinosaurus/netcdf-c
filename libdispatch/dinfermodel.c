@@ -123,6 +123,7 @@ static const struct MACRODEF {
 {"s3","mode","nczarr,s3"},
 {"bytes","mode","bytes"},
 {"xarray","mode","nczarr,zarr,xarray"},
+{"noxarray","mode","nczarr,zarr,noxarray"},
 {NULL,NULL,NULL}
 };
 
@@ -133,6 +134,7 @@ static const struct MODEINFER {
 } modeinferences[] = {
 {"zarr","nczarr"},
 {"xarray","zarr"},
+{"noxarray","zarr"},
 {NULL,NULL}
 };
 
@@ -164,7 +166,7 @@ static struct NCPROTOCOLLIST {
     {"file",NULL,NULL},
     {"dods","http","dap2"},
     {"dap4","http","dap4"},
-    {"s3","http","s3"},
+    {"s3","https","s3"},
     {NULL,NULL,NULL} /* Terminate search */
 };
 

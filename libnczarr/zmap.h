@@ -59,7 +59,7 @@ The search function has two purposes:
       track their contents).
    b. Debugging to allow raw examination of the storage. See zdump
       for example.
-v
+
 The search function takes a prefix path which has a key syntax (see above).
 The set of legal keys is the set of keys such that the key references
 a content-bearing object -- e.g. /x/y/.zarray or /.zgroup. Essentially
@@ -155,7 +155,7 @@ NCZM_S3=3,	/* Amazon S3 implementation */
 } NCZM_IMPL;
 
 /* Define the default map implementation */
-#define NCZM_DEFAULT NCZM_ZIP
+#define NCZM_DEFAULT NCZM_FILE
 
 /* Define the per-implementation limitations flags */
 typedef size64_t NCZM_FEATURES;

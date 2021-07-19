@@ -14,6 +14,9 @@
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -94,10 +97,29 @@ This means it is ok to call it repeatedly with no harm.
 */
 EXTERNL char* NCpathcvt(const char* path);
 
+/**
+It is often convenient to convert a path to some canonical format
+that has some desirable properties:
+1. All backslashes have been converted to forward slash
+2. It can be suffixed or prefixed by simple concatenation
+   with a '/' separator. The exception being if the base part
+   may be absolute, in which case, suffixing only is allowed;
+   the user is responsible for getting this right.
+To this end we choose the linux/cygwin format as our standard canonical form.
+If the path has a windows drive letter, then it is represented
+in the cygwin "/cygdrive/<drive-letter>" form. If it is on *nix* platform,
+then this sequence will never appear and the canonical path will look
+like a standard *nix* path.
+*/
+EXTERNL int NCpathcanonical(const char* srcpath, char** canonp);
+
 EXTERNL int NChasdriveletter(const char* path);
 
 /* Canonicalize and make absolute by prefixing the current working directory */
 EXTERNL char* NCpathabsolute(const char* name);
+
+/* Check if this path appears to start with a windows drive letter */
+EXTERNL int NChasdriveletter(const char* path);
 
 /* Convert from the local coding (e.g. ANSI) to utf-8;
    note that this can produce unexpected results for Windows
@@ -117,8 +139,9 @@ EXTERNL int NCaccess(const char* path, int mode);
 EXTERNL int NCremove(const char* path);
 EXTERNL int NCmkdir(const char* path, int mode);
 EXTERNL int NCrmdir(const char* path);
-EXTERNL char* NCcwd(char* cwdbuf, size_t len);
-EXTERNL char* NCcwd(char* cwdbuf, size_t len);
+EXTERNL char* NCgetcwd(char* cwdbuf, size_t len);
+EXTERNL int NCmkstemp(char* buf);
+
 #ifdef HAVE_SYS_STAT_H
 EXTERNL int NCstat(char* path, struct stat* buf);
 #endif
@@ -134,11 +157,12 @@ EXTERNL int NCclosedir(DIR* ent);
 #define NCaccess(path,mode) access(path,mode)
 #define NCmkdir(path,mode) mkdir(path,mode)
 #define NCgetcwd(buf,len) getcwd(buf,len)
+#define NCmkstemp(buf) mkstemp(buf);
+#define NCcwd(buf, len) getcwd(buf,len)
+#define NCrmdir(path) rmdir(path)
 #ifdef HAVE_SYS_STAT_H
 #define NCstat(path,buf) stat(path,buf)
 #endif
-#define NCcwd(buf, len) getcwd(buf,len)
-#define NCrmdir(path) rmdir(path)
 #ifdef HAVE_DIRENT_H
 #define NCopendir(path) opendir(path)
 #define NCclosedir(ent) closedir(ent)
@@ -168,5 +192,6 @@ EXTERNL void printutf8hex(const char* s, char* sx);
 /* From dutil.c */
 EXTERNL char* NC_backslashEscape(const char* s);
 EXTERNL char* NC_backslashUnescape(const char* esc);
+EXTERNL char* NC_shellUnescape(const char* esc);
 
 #endif /* _NCPATHMGR_H_ */

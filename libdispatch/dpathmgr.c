@@ -148,6 +148,49 @@ done:
 }
 
 EXTERNL
+int
+NCpathcanonical(const char* srcpath, char** canonp)
+{
+    int stat = NC_NOERR;
+    char* canon = NULL;
+    size_t len;
+    struct Path path = empty;
+    
+    if(srcpath == NULL) goto done;
+
+    if(!pathinitialized) pathinit();
+
+    /* parse the src path */
+    if((stat = parsepath(srcpath,&path))) {goto done;}
+    switch (path.kind) {
+    case NCPD_NIX:
+    case NCPD_CYGWIN:
+    case NCPD_REL:
+	/* use as is */
+	canon = path.path; path.path = NULL;
+	break;	
+    case NCPD_MSYS:
+    case NCPD_WIN: /* convert to cywin form */
+	len = strlen(path.path) + strlen("/cygdrive/X") + 1;
+	canon = (char*)malloc(len);
+	if(canon != NULL) {
+	    canon[0] = '\0';
+	    strlcat(canon,"/cygdrive/X",len);
+	    canon[10] = path.drive;
+	    strlcat(canon,path.path,len);
+	}
+	break;		
+    default: goto done; /* return NULL */
+    }
+    if(canonp) {*canonp = canon; canon = NULL;}
+
+done:
+    nullfree(canon);
+    clearPath(&path);
+    return stat;
+}
+
+EXTERNL
 char* /* caller frees */
 NCpathabsolute(const char* relpath)
 {
@@ -161,7 +204,7 @@ NCpathabsolute(const char* relpath)
 
     if(!pathinitialized) pathinit();
 
-    /* Canonicalize relpath */
+    /* Decompose path */
     if((stat = parsepath(relpath,&canon))) {goto done;}
     
     /* See if relative */
@@ -356,10 +399,7 @@ int
 NCclosedir(DIR* ent)
 {
     int stat = NC_NOERR;
-    char* cvtname = NCpathcvt(path);
-    if(cvtname == NULL) {errno = ENOENT; return -1;}
-    stat = closedir(cvtname);
-    free(cvtname);    
+    if(closedir(ent) < 0) stat = errno;
     return stat;
 }
 #endif
@@ -458,6 +498,43 @@ done:
     nullfree(path);
     errno = status;
     return cwdbuf;
+}
+
+EXTERNL
+int
+NCmkstemp(char* base)
+{
+    int stat = 0;
+    int fd, rno;
+    char* tmp = NULL;
+    size_t len;
+    char* xp = NULL;
+    char* cvtpath = NULL;
+    int attempts;
+
+    cvtpath = NCpathcvt(base);
+    len = strlen(cvtpath);
+    xp = cvtpath+(len-6);
+    assert(memcmp(xp,"XXXXXX",6)==0);    
+    for(attempts=10;attempts>0;attempts--) {
+        /* The Windows version of mkstemp does not work right;
+           it only allows for 26 possible XXXXXX values */
+        /* Need to simulate by using some kind of pseudo-random number */
+        rno = rand();
+        if(rno < 0) rno = -rno;
+        snprintf(xp,7,"%06d",rno);
+        fd=NCopen3(cvtpath,O_RDWR|O_BINARY|O_CREAT, _S_IREAD|_S_IWRITE);
+        if(fd >= 0) break;
+    }
+    if(fd < 0) {
+       nclog(NCLOGERR, "Could not create temp file: %s",tmp);
+       stat = EACCES;
+       goto done;
+    }
+done:
+    nullfree(cvtpath);
+    if(stat && fd >= 0) {close(fd);}    
+    return (stat?-1:fd);
 }
 
 #ifdef HAVE_SYS_STAT_H
@@ -911,33 +988,3 @@ printutf8hex(const char* s, char* sx)
     }
     *q = '\0';
 }
-
-/**************************************************/
-#if 0
-#ifdef HAVE_DIRENT_H
-EXTERNL
-DIR*
-NCopendir(const char* path)
-{
-    DIR* ent = NULL;
-    char* cvtpath = NCpathcvt(path);
-    if(cvtpath == NULL) return -1;
-    ent = opendir(cvtpath);
-    free(cvtpath);    
-    return ent;
-}
-
-EXTERNL
-int
-NCclosedir(DIR* ent)
-{
-    int stat = 0;
-    char* cvtpath = NCpathcvt(path);
-    if(cvtpath == NULL) return -1;
-    stat = closedir(cvtpath);
-    free(cvtpath);    
-    return stat;
-}
-#endif
-#endif /*0*/
-
